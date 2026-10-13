@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caça aos Cartazes — Paulina Chiziane</title>
+<style>
+:root{--green:#16794b;--ink:#20312a;--paper:#fffdf7}*{box-sizing:border-box}body{margin:0;background:#f4f6f1;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}header{background:linear-gradient(135deg,#146b43,#1e8a5b);color:white;padding:24px 16px;text-align:center}header h1{margin:0 0 8px;font-size:clamp(1.4rem,5vw,2.2rem)}header p{margin:0}main{max-width:850px;margin:auto;padding:16px}.panel{background:white;border-radius:16px;padding:16px;margin:14px 0;box-shadow:0 3px 14px #193b2512}.progressline{display:flex;justify-content:space-between;gap:10px;align-items:center;font-weight:700}.track{height:14px;background:#e5ebe5;border-radius:99px;overflow:hidden;margin:10px 0}.fill{height:100%;width:0;background:linear-gradient(90deg,#18844f,#e6bd39);transition:width .25s}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px}.poster{border:1px solid #e2e8e1;border-radius:12px;padding:12px;min-height:112px;background:#fbfcf9}.poster strong{display:block;margin-bottom:7px}.status,.note{font-size:.9rem;color:#56665c;line-height:1.45}.done{border:2px solid #208452;background:#f0fbf4}button{border:0;border-radius:10px;padding:12px 15px;background:var(--green);color:white;font-size:1rem;font-weight:700;cursor:pointer}button.secondary{background:#e9eee9;color:#24372b}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}#reader{width:100%;max-width:480px;margin:12px auto;overflow:hidden;border-radius:12px;min-height:0}#reader video{width:100%!important;max-width:100%!important;border-radius:12px;object-fit:cover}#reader__dashboard_section_csr button{margin:5px}.hidden{display:none!important}#message{padding:12px;border-radius:10px;background:#edf7ee;margin-top:10px}#win{border:2px solid #f3c64e;background:#fff9e4;text-align:center}input{width:100%;padding:12px;margin:8px 0;border:1px solid #bbb;border-radius:8px;font-size:1rem}@media print{header,.no-print,#playPanel,#progressPanel,#collectionPanel,#win{display:none!important}body{background:white}.panel{box-shadow:none}}
+</style></head>
+<body><header><h1>🧭 Caça aos Cartazes</h1><p>A Jornada de Paulina Chiziane · Feira Multicultural</p></header><main>
+<section class="panel"><h2>Como jogar</h2><p>Encontre os 8 cartazes pela feira. Em cada um, escaneie o QR Code com este jogo para registrar a descoberta. Complete a coleção e mostre a tela final para receber o prêmio!</p><p class="note">Para usar a câmera, abra o site pelo endereço HTTPS (não pelo arquivo baixado) e permita o acesso à câmera quando o navegador perguntar. O jogo precisa de internet para carregar o leitor de QR Code.</p></section>
+<section id="progressPanel" class="panel"><div class="progressline"><span>Seu progresso</span><span id="count">0/8 cartazes</span></div><div class="track"><div class="fill" id="fill"></div></div><p class="note" id="progressText">Você ainda não encontrou nenhum cartaz.</p></section>
+<section id="playPanel" class="panel"><h2>📷 Escanear cartaz</h2><p class="note">Toque em “Abrir câmera” e aponte para o QR Code impresso no cartaz. Cada cartaz só conta uma vez.</p><div class="actions no-print"><button id="startBtn">Abrir câmera</button><button id="stopBtn" class="secondary" disabled>Fechar câmera</button></div><div id="reader"></div><div id="message" class="hidden" role="status"></div><div class="actions no-print"><button id="manualBtn" class="secondary">Digitar código manualmente</button></div><div id="manualBox" class="hidden"><label for="manualCode">Digite o código impresso no cartaz (ex.: PAULINA01)</label><input id="manualCode" placeholder="PAULINA01"><button id="submitCode">Confirmar código</button></div></section>
+<section id="collectionPanel" class="panel"><h2>📚 Minha coleção</h2><div id="collection" class="grid"></div><div class="actions no-print"><button id="resetBtn" class="secondary">Reiniciar jogo</button></div></section>
+<section id="win" class="panel hidden"><h2>🎉 Parabéns! Você completou a jornada!</h2><p>Você encontrou os 8 cartazes sobre Paulina Chiziane. Mostre esta tela à organização da feira para receber seu prêmio.</p><p><strong>Missão concluída: 8 de 8</strong></p></section>
+
+<footer class="note" style="text-align:center;padding:12px 0 24px">Projeto escolar · Caça aos Cartazes — A Jornada de Paulina Chiziane</footer></main>
+<script async src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'"></script>
+<script>
+const posters=["Paulina Chiziane cartaz inicial","Quem é","As origens","Trajetória","Os desafios","A cultura Moçambicana","Paulina chiziane e as mulheres","O legado"];
+const codes=["PAULINA01","PAULINA02","PAULINA03","PAULINA04","PAULINA05","PAULINA06","PAULINA07","PAULINA08"];
+const PREFIX="PAULINA-CARTAZ-", STORAGE="paulina_caca_cartazes_v1";let found=loadFound(),scanner=null,scanning=false,lastCode="",lastAt=0;
+function loadFound(){try{let x=JSON.parse(localStorage.getItem(STORAGE)||"[]");return Array.isArray(x)?x.filter(n=>Number.isInteger(n)&&n>=1&&n<=8):[]}catch(e){return []}}
+function saveFound(){try{localStorage.setItem(STORAGE,JSON.stringify(found))}catch(e){}}
+function render(){document.getElementById('count').textContent=`${found.length}/8 cartazes`;document.getElementById('fill').style.width=`${found.length/8*100}%`;document.getElementById('progressText').textContent=found.length===0?'Você ainda não encontrou nenhum cartaz.':found.length===8?'Todos os cartazes encontrados!':`Faltam ${8-found.length} cartaz(es) para completar a missão.`;let c=document.getElementById('collection');c.innerHTML='';posters.forEach((name,i)=>{let n=i+1,done=found.includes(n),d=document.createElement('div');d.className='poster'+(done?' done':'');d.innerHTML=`<strong>${done?'✅':'🔒'} Cartaz ${n}</strong><div>${name}</div><div class="status">${done?'Descoberto!':'Ainda não encontrado'}</div>`;c.appendChild(d)});document.getElementById('win').classList.toggle('hidden',found.length!==8)}
+function showMessage(t,good=true){let e=document.getElementById('message');e.textContent=t;e.classList.remove('hidden');e.style.background=good?'#edf7ee':'#fff0ee'}
+function acceptCode(raw){let code=String(raw||'').trim().toUpperCase().replace(/\s+/g,'');let n=codes.indexOf(code)+1;if(n===0){const old=code.match(/^PAULINA-CARTAZ-([1-8])$/);if(old)n=Number(old[1]);}if(n<1||n>8){showMessage('Código não reconhecido. Confira o código impresso no cartaz e tente novamente.',false);return}if(found.includes(n)){showMessage(`Você já encontrou o cartaz ${n}: ${posters[n-1]}. Procure outro!`,false);return}found.push(n);found.sort((a,b)=>a-b);saveFound();render();showMessage(`🎉 Cartaz ${n} confirmado: ${posters[n-1]}! Progresso: ${found.length}/8.`)}
+let nativeStream=null,nativeVideo=null,nativeDetector=null,nativeScanTimer=null;
+
+async function startScanner(){
+  if(scanning)return;
+  const startBtn=document.getElementById('startBtn');
+  const stopBtn=document.getElementById('stopBtn');
+  const reader=document.getElementById('reader');
+  startBtn.disabled=true;
+  stopBtn.disabled=true;
+  showMessage('Preparando a câmera…');
+
+  // O Chrome mobile exige contexto seguro (HTTPS) para liberar a câmera.
+  if(!window.isSecureContext && location.hostname!=='localhost' && location.hostname!=='127.0.0.1'){
+    startBtn.disabled=false;
+    showMessage('O Chrome bloqueia a câmera neste endereço. Publique/abra o jogo por um link HTTPS (não abra o arquivo HTML diretamente nem pelo visualizador de arquivos).',false);
+    return;
+  }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    startBtn.disabled=false;
+    showMessage('Este navegador não liberou acesso à câmera. Abra o link HTTPS diretamente no Google Chrome, não dentro do WhatsApp/Instagram ou de outro aplicativo.',false);
+    return;
+  }
+
+  // Primeiro tenta a API nativa do Chrome/Android, que evita depender da biblioteca externa.
+  if('BarcodeDetector' in window){
+    try{
+      let formats=await BarcodeDetector.getSupportedFormats();
+      if(formats.includes('qr_code')){
+        nativeDetector=new BarcodeDetector({formats:['qr_code']});
+        showMessage('Solicitando permissão para usar a câmera…');
+        // Tente a câmera traseira primeiro; o Chrome escolhe a disponível se necessário.
+        try{
+          nativeStream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+        }catch(firstError){
+          if(firstError && (firstError.name==='NotAllowedError'||firstError.name==='SecurityError')) throw firstError;
+          nativeStream=await navigator.mediaDevices.getUserMedia({audio:false,video:true});
+        }
+        nativeVideo=document.createElement('video');
+        nativeVideo.setAttribute('autoplay','');
+        nativeVideo.setAttribute('playsinline','');
+        nativeVideo.setAttribute('muted','');
+        nativeVideo.muted=true;
+        nativeVideo.autoplay=true;
+        nativeVideo.playsInline=true;
+        nativeVideo.style.cssText='display:block;width:100%;max-width:100%;border-radius:12px;background:#111;';
+        nativeVideo.srcObject=nativeStream;
+        reader.innerHTML='';
+        reader.appendChild(nativeVideo);
+        await nativeVideo.play();
+        scanning=true;
+        stopBtn.disabled=false;
+        showMessage('Câmera aberta! Aponte para o QR Code e mantenha o celular firme.');
+        scanNativeFrame();
+        return;
+      }
+    }catch(nativeError){
+      stopNativeCamera();
+      // Se o usuário negou a permissão, não tente contornar a escolha dele.
+      if(nativeError && (nativeError.name==='NotAllowedError'||nativeError.name==='SecurityError')){
+        startBtn.disabled=false;
+        showMessage('O acesso à câmera foi bloqueado. No Chrome, toque no ícone ao lado do endereço do site > Permissões > Câmera > Permitir. Depois recarregue a página e tente novamente.',false);
+        return;
+      }
+    }
+  }
+
+  // Compatibilidade para navegadores sem BarcodeDetector.
+  try{
+    if(!window.Html5Qrcode){
+      for(let i=0;i<24 && !window.Html5Qrcode;i++) await new Promise(resolve=>setTimeout(resolve,250));
+    }
+    if(!window.Html5Qrcode){
+      throw new Error('A biblioteca do leitor não carregou. Verifique a internet e recarregue a página.');
+    }
+    const config={
+      fps:10,
+      qrbox:(w,h)=>{const side=Math.max(150,Math.floor(Math.min(w,h)*0.75));return {width:Math.min(side,w),height:Math.min(side,h)};},
+      aspectRatio:1.0,
+      disableFlip:false,
+      videoConstraints:{facingMode:{ideal:'environment'}}
+    };
+    scanner=new Html5Qrcode('reader',{verbose:false});
+    try{
+      await scanner.start({facingMode:'environment'},config,onQrSuccess,()=>{});
+    }catch(firstError){
+      try{await scanner.clear()}catch(_){}
+      scanner=new Html5Qrcode('reader',{verbose:false});
+      const cameras=await Html5Qrcode.getCameras();
+      if(!cameras || !cameras.length) throw firstError;
+      const backCamera=cameras.find(c=>/back|rear|environment|traseira|externa/i.test(c.label||''))||cameras[cameras.length-1];
+      await scanner.start(backCamera.id,config,onQrSuccess,()=>{});
+    }
+    scanning=true;
+    stopBtn.disabled=false;
+    showMessage('Câmera aberta! Aponte para o QR Code e mantenha o celular firme.');
+  }catch(e){
+    try{if(scanner){await scanner.stop().catch(()=>{});scanner.clear();}}catch(_){}
+    scanner=null;scanning=false;startBtn.disabled=false;stopBtn.disabled=true;
+    const name=String(e&&e.name||'');
+    const detail=String(e&&e.message||'');
+    let msg='Não consegui abrir a câmera.';
+    if(/NotAllowedError|PermissionDeniedError|SecurityError/i.test(name+' '+detail)) msg='A permissão da câmera foi negada. No Chrome, abra as permissões do site e selecione Câmera > Permitir.';
+    else if(/NotFoundError|DevicesNotFoundError/i.test(name+' '+detail)) msg='Não encontrei uma câmera disponível neste aparelho.';
+    else if(/NotReadableError|TrackStartError|Could not start video source/i.test(name+' '+detail)) msg='A câmera pode estar sendo usada por outro aplicativo. Feche outros apps que usam a câmera e tente novamente.';
+    else if(/secure|https|origin/i.test(detail)) msg='O Chrome só permite câmera em HTTPS. Abra a versão publicada com link HTTPS.';
+    else if(detail) msg+=' Detalhe: '+detail.slice(0,180);
+    showMessage(msg+' Você também pode digitar o código manualmente.',false);
+  }
+}
+
+function scanNativeFrame(){
+  if(!scanning||!nativeDetector||!nativeVideo)return;
+  if(nativeVideo.readyState>=2){
+    nativeDetector.detect(nativeVideo).then(results=>{
+      if(results && results.length && scanning) onQrSuccess(results[0].rawValue||'');
+    }).catch(()=>{}).finally(()=>{
+      if(scanning) nativeScanTimer=setTimeout(scanNativeFrame,140);
+    });
+  }else{
+    nativeScanTimer=setTimeout(scanNativeFrame,140);
+  }
+}
+
+function stopNativeCamera(){
+  if(nativeScanTimer){clearTimeout(nativeScanTimer);nativeScanTimer=null;}
+  if(nativeStream){nativeStream.getTracks().forEach(track=>{try{track.stop()}catch(_){}});nativeStream=null;}
+  if(nativeVideo){try{nativeVideo.pause();nativeVideo.srcObject=null}catch(_){}nativeVideo=null;}
+  nativeDetector=null;
+}
+
+function onQrSuccess(txt){const now=Date.now();if(txt!==lastCode||now-lastAt>2500){lastCode=txt;lastAt=now;acceptCode(txt)}}
+async function stopScanner(){
+  scanning=false;
+  stopNativeCamera();
+  if(scanner){
+    try{await scanner.stop()}catch(e){}
+    try{scanner.clear()}catch(e){}
+  }
+  scanner=null;
+  document.getElementById('reader').innerHTML='';
+  document.getElementById('startBtn').disabled=false;
+  document.getElementById('stopBtn').disabled=true;
+  showMessage('Câmera fechada. Você pode abrir novamente quando quiser.');
+}
+
+document.getElementById('startBtn').onclick=startScanner;document.getElementById('stopBtn').onclick=stopScanner;document.getElementById('manualBtn').onclick=()=>document.getElementById('manualBox').classList.toggle('hidden');document.getElementById('submitCode').onclick=()=>acceptCode(document.getElementById('manualCode').value);document.getElementById('manualCode').addEventListener('keydown',e=>{if(e.key==='Enter')acceptCode(e.target.value)});document.getElementById('resetBtn').onclick=()=>{if(confirm('Tem certeza que deseja apagar o progresso deste aparelho?')){found=[];saveFound();render();showMessage('Jogo reiniciado.')}};
+render();
+showMessage('Jogo carregado. Toque em “Abrir câmera” para começar.');
+</script></body></html>
